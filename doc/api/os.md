@@ -1160,6 +1160,52 @@ The following error codes are specific to the Windows operating system:
   </tr>
 </table>
 
+### dlopen Constants
+
+If available on the operating system, the following constants
+are exported in `os.constants.dlopen`. See `dlopen(3)` for detailed
+information.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>RTLD_LAZY</code></td>
+    <td>Perform lazy binding. libuv sets this flag by default.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_NOW</code></td>
+    <td>Resolve all undefined symbols in the library before dlopen()
+    returns.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_GLOBAL</code></td>
+    <td>Symbols defined by the library will be made available for symbol
+    resolution of subsequently loaded libraries.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_LOCAL</code></td>
+    <td>The converse of RTLD_GLOBAL. This is the default behavior if neither
+    flag is specified.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_NODELETE</code></td>
+    <td>Don't unload the library during dlclose().</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_NOLOAD</code></td>
+    <td>Don't load the library. This can be used to test if the library is
+    already resident.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_DEEPBIND</code></td>
+    <td>Make a self-contained library use its own symbols in preference to
+    symbols from previously loaded libraries.</td>
+  </tr>
+</table>
+
 ### libuv Constants
 
 <table>
@@ -1173,6 +1219,7 @@ The following error codes are specific to the Windows operating system:
   </tr>
 </table>
 
+[man 3 dlopen]: http://man7.org/linux/man-pages/man3/dlopen.3.html
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
 [OS Constants]: #os_os_constants

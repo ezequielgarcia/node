@@ -44,6 +44,10 @@
 # endif  // !OPENSSL_NO_ENGINE
 #endif
 
+#if defined(__POSIX__)
+#include <dlfcn.h>
+#endif
+
 namespace node {
 
 using v8::Local;
@@ -1258,6 +1262,36 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
 }
 
+void DefineDLOpenConstants(Local<Object> target) {
+#ifdef RTLD_LAZY
+  NODE_DEFINE_CONSTANT(target, RTLD_LAZY);
+#endif
+
+#ifdef RTLD_NOW
+  NODE_DEFINE_CONSTANT(target, RTLD_NOW);
+#endif
+
+#ifdef RTLD_GLOBAL
+  NODE_DEFINE_CONSTANT(target, RTLD_GLOBAL);
+#endif
+
+#ifdef RTLD_LOCAL
+  NODE_DEFINE_CONSTANT(target, RTLD_LOCAL);
+#endif
+
+#ifdef RTLD_NODELETE
+  NODE_DEFINE_CONSTANT(target, RTLD_NODELETE);
+#endif
+
+#ifdef RTLD_NOLOAD
+  NODE_DEFINE_CONSTANT(target, RTLD_NOLOAD);
+#endif
+
+#ifdef RTLD_DEEPBIND
+  NODE_DEFINE_CONSTANT(target, RTLD_DEEPBIND);
+#endif
+}
+
 }  // anonymous namespace
 
 void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
@@ -1287,6 +1321,10 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   CHECK(zlib_constants->SetPrototype(env->context(),
                                      Null(env->isolate())).FromJust());
 
+  Local<Object> dlopen_constants = Object::New(isolate);
+  CHECK(dlopen_constants->SetPrototype(env->context(),
+                                       Null(env->isolate())).FromJust());
+
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
@@ -1295,9 +1333,11 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   DefineOpenSSLConstants(crypto_constants);
   DefineCryptoConstants(crypto_constants);
   DefineZlibConstants(zlib_constants);
+  DefineDLOpenConstants(dlopen_constants);
 
   os_constants->Set(OneByteString(isolate, "errno"), err_constants);
   os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
+  os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
   target->Set(OneByteString(isolate, "os"), os_constants);
   target->Set(OneByteString(isolate, "fs"), fs_constants);
   target->Set(OneByteString(isolate, "crypto"), crypto_constants);
