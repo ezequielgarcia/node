@@ -110,6 +110,10 @@ typedef int mode_t;
 #include <grp.h>  // getgrnam()
 #endif
 
+#if defined(__POSIX__)
+#include <dlfcn.h>
+#endif
+
 #ifdef __APPLE__
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
@@ -2479,7 +2483,7 @@ struct node_module* get_linked_module(const char* name) {
   return mp;
 }
 
-// DLOpen is process.dlopen(module, filename).
+// DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
 // FIXME(bnoordhuis) Not multi-context ready. TBD how to resolve the conflict
@@ -2487,18 +2491,50 @@ struct node_module* get_linked_module(const char* name) {
 // cache that's a plain C list or hash table that's shared across contexts?
 static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  bool is_dlopen_error = false;
+  const char *dlerrmsg = nullptr;
   uv_lib_t lib;
 
   CHECK_EQ(modpending, nullptr);
 
-  if (args.Length() != 2) {
-    env->ThrowError("process.dlopen takes exactly 2 arguments.");
+  if (args.Length() < 2) {
+    env->ThrowError("process.dlopen needs at least 2 arguments.");
     return;
   }
 
   Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
-  const bool is_dlopen_error = uv_dlopen(*filename, &lib);
+
+#ifdef __POSIX__
+  int flags = 0;
+  if (args.Length() > 2) {
+    if (!args[2]->IsInt32() && !args[2]->IsUndefined()) {
+      return env->ThrowTypeError("dlopen flags must be undefined or integer.");
+    }
+    if (args[2]->IsInt32())
+      flags = args[2]->Int32Value();
+  }
+
+  if (!flags) {
+    // If no flag is passed, fallback to default
+    is_dlopen_error = uv_dlopen(*filename, &lib);
+  } else {
+
+    // libuv does not support passing flags to dlopen,
+    // so we need to open code the uv_dlopen implementation.
+    lib.errmsg = nullptr;
+    lib.handle = dlopen(*filename, flags);
+    if (!lib.handle) {
+      is_dlopen_error = true;
+      dlerrmsg = dlerror();
+    }
+  }
+#else  // _WIN32
+  is_dlopen_error = uv_dlopen(*filename, &lib);
+#endif
+
+  if (is_dlopen_error && !dlerrmsg)
+    dlerrmsg = uv_dlerror(&lib);
 
   // Objects containing v14 or later modules will have registered themselves
   // on the pending list.  Activate all of them now.  At present, only one
@@ -2507,7 +2543,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   modpending = nullptr;
 
   if (is_dlopen_error) {
-    Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
+    Local<String> errmsg = OneByteString(env->isolate(), dlerrmsg);
     uv_dlclose(&lib);
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
